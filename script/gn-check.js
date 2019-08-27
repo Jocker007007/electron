@@ -1,4 +1,3 @@
-const sh = require('shelljs')
 const cp = require('child_process')
 
 const { getOutDir } = require('./lib/utils')
@@ -18,7 +17,7 @@ const gnCheckDirs = [
 for (const dir of gnCheckDirs) {
   const args = ['check', `../out/${OUT_DIR}`, dir]
   const result = cp.spawnSync('gn', args, { stdio: 'inherit' })
-  if (result.status !== 0) sh.exit(result.status)
+  if (result.status !== 0) process.exit(result.status)
 }
 
-sh.exit(0)
+process.exit(0)
