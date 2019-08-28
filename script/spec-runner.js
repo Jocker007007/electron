@@ -7,6 +7,10 @@ const { hashElement } = require('folder-hash')
 const path = require('path')
 const unknownFlags = []
 
+require('colors')
+const pass = '\u2713'.green
+const fail = '\u2717'.red
+
 const args = require('minimist')(process.argv, {
   string: ['runners'],
   unknown: arg => unknownFlags.push(arg)
@@ -30,12 +34,16 @@ const NPX_CMD = process.platform === 'win32' ? 'npx.cmd' : 'npx'
 
 const specHashPath = path.resolve(__dirname, '../spec/.hash')
 
-let runnersToRun = null
+let runnerToRun = null
 if (args.runners) {
-  runnersToRun = args.runners.split(',')
-  console.log('Only running:', runnersToRun)
+  runnerToRun = args.runners
+  if (!['main', 'remote'].includes(runnerToRun)) {
+    console.log(`${fail} runners must specify either 'main' or 'remote'`)
+    process.exit(1)
+  }
+  console.log('Only running:', runnerToRun)
 } else {
-  console.log('Will trigger all spec runners')
+  console.log('Triggering both main and remote spec runners')
 }
 
 async function main () {
@@ -86,7 +94,7 @@ async function runElectronTests () {
 
   const testResultsDir = process.env.ELECTRON_TEST_RESULTS_DIR
   for (const [runnerId, { description, run }] of runners) {
-    if (runnersToRun && !runnersToRun.includes(runnerId)) {
+    if (runnerToRun && runnerToRun !== runnerId) {
       console.info('\nSkipping:', description)
       continue
     }
@@ -106,7 +114,8 @@ async function runElectronTests () {
       console.error('\n\nRunner Failed:', err[0])
       console.error(err[1])
     }
-    throw new Error('Electron test runners have failed')
+    console.log(`${fail} Electron test runners have failed`)
+    process.exit(1)
   }
 }
 
@@ -124,8 +133,10 @@ async function runRemoteBasedElectronTests () {
   })
   if (status !== 0) {
     const textStatus = process.platform === 'win32' ? `0x${status.toString(16)}` : status.toString()
-    throw new Error(`Electron tests failed with code ${textStatus}.`)
+    console.log(`${fail} Electron tests failed with code ${textStatus}.`)
+    process.exit(1)
   }
+  console.log(`${pass} Electron remote process tests passed.`)
 }
 
 async function runMainProcessElectronTests () {
@@ -137,8 +148,10 @@ async function runMainProcessElectronTests () {
   })
   if (status !== 0) {
     const textStatus = process.platform === 'win32' ? `0x${status.toString(16)}` : status.toString()
-    throw new Error(`Electron tests failed with code ${textStatus}.`)
+    console.log(`${fail} Electron tests failed with code ${textStatus}.`)
+    process.exit(1)
   }
+  console.log(`${pass} Electron main process tests passed.`)
 }
 
 async function installSpecModules () {
@@ -153,7 +166,8 @@ async function installSpecModules () {
     stdio: 'inherit'
   })
   if (status !== 0 && !process.env.IGNORE_YARN_INSTALL_ERROR) {
-    throw new Error('Failed to yarn install in the spec folder')
+    console.log(`${fail} Failed to yarn install in the spec folder`)
+    process.exit(1)
   }
 }
 
